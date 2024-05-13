@@ -11,6 +11,8 @@ seaborn = "*"
 scikit-learn = "*"
 catboost = "*"
 cianparser = "*"
+pytelegrambotapi = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
