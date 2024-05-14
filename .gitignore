@@ -1,3 +1,4 @@
 .env
 flats.db
 user_parameters.json
+__pycache__
