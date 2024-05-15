@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f09c1b104f164f286ca29fd19399fe354c860c3a631f7a2aae98c52d75a80f00"
+            "sha256": "e970fd21a5ac9cb5ef31948c9183cf20f175e17ae8c4c6c33164aa36702bb133"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -781,12 +781,12 @@
         },
         "pytelegrambotapi": {
             "hashes": [
-                "sha256:326b51fdaa4f5dcb1e12d326beb9d9aa1289ffb578110b17d5ea269971a39160",
-                "sha256:8cfda15e64a12fe73b78545ccc7b59e035d7fb3e54da5722ddf756296f3b8159"
+                "sha256:88a980ed75f3ea611c97fcb375fc787fc6ef4f1e2f61ae59a14d7377058376a1",
+                "sha256:a8a18c1fe847d1dc2622279d21ec591e47e0c067278eeb2275c759dfbc9522d5"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==4.17.0"
+            "version": "==4.18.0"
         },
         "python-dateutil": {
             "hashes": [
@@ -919,6 +919,14 @@
             ],
             "markers": "python_version >= '3.8'",
             "version": "==2.5"
+        },
+        "telebot": {
+            "hashes": [
+                "sha256:50327c240243480d40ade4ea5bea4f464bf57d4ff000ea669fcd705396074863",
+                "sha256:848a5885b57247b65edd0e92647b4372ebd8d41611dca3f344788c11deac2571"
+            ],
+            "index": "pypi",
+            "version": "==0.0.5"
         },
         "tenacity": {
             "hashes": [
