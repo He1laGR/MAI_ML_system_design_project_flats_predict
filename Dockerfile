@@ -1,13 +1,18 @@
 FROM python:3.11
 
-RUN pip install pipenv python-dotenv
-
 WORKDIR /app
 
-COPY Pipfile Pipfile.lock /app/
+COPY Pipfile Pipfile.lock ./
 
-RUN pipenv install --deploy --ignore-pipfile
+RUN pip install --no-cache-dir pipenv
 
 COPY . /app
 
-CMD ["pipenv", "run", "python", "main.py"]
+RUN pipenv install --system --deploy --ignore-pipfile
+
+USER 1000
+
+ENV PIPENV_VENV_IN_PROJECT=1
+ENV PIPENV_IGNORE_VIRTUALENVS=1
+
+CMD ["python", "main.py"]
