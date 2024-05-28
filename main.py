@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 import telebot
+import sqlite3
 import json
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ with open('model.pkl', 'rb') as file:
     model = pickle.load(file)
 
 load_dotenv()
-token = os.getenv('TOKEN')
+token = os.getenv('BOT_TOKEN')
 bot = telebot.TeleBot(token)
 
 # /start - Приветствие пользователя
@@ -362,8 +363,8 @@ def prediction(message):
         user_parameters = load_user_parameters()
         input_data = pd.DataFrame(user_parameters, index=[0])
         predicted_price = np.exp(model.predict(input_data))
-        lower_border = int(predicted_price - (predicted_price * 5 / 100))
-        upper_border = int(predicted_price + (predicted_price * 5 / 100))
+        lower_border = round(predicted_price[0] - (predicted_price[0] * 5 / 100))
+        upper_border = round(predicted_price[0] + (predicted_price[0] * 5 / 100))
         formatted_lower_border = "{:,}".format(lower_border).replace(",", ".")
         formatted_upper_border = "{:,}".format(upper_border).replace(",", ".")
         markup = types.InlineKeyboardMarkup()
@@ -374,18 +375,44 @@ def prediction(message):
         msg = bot.send_message(message.chat.id, "<b>Проверьте, пожалуйста, корректно ли вы ввели параметры</b>", parse_mode='html')
         bot.register_next_step_handler(msg, process_inline_buttons)
 
-# Сэйвим собранные данные в json
 def save_parameters():
     global user_parameters
     user_parameters.update(collected_params)
 
-    with open('user_parameters.json', 'w', encoding='utf-8') as file:
-        json.dump(user_parameters, file, ensure_ascii=False)
+    conn = sqlite3.connect('/app/data/user_parameters.db')
+    c = conn.cursor()
+
+    # Создаем таблицу, если она не существует
+    c.execute('''CREATE TABLE IF NOT EXISTS user_parameters
+                 (parameters TEXT)''')
+
+    # Преобразуем словарь в JSON-строку
+    params_json = json.dumps(user_parameters)
+
+    # Удаляем старую запись, если она есть
+    c.execute("DELETE FROM user_parameters")
+
+    # Вставляем новую запись
+    c.execute("INSERT INTO user_parameters (parameters) VALUES (?)", (params_json,))
+    conn.commit()
+    conn.close()
 
 def load_user_parameters():
-    with open('user_parameters.json', 'r', encoding='utf-8') as file:
-        user_parameters = json.load(file)
-    return user_parameters
+    conn = sqlite3.connect('/app/data/user_parameters.db')
+    c = conn.cursor()
+
+    # Получаем последнюю запись из таблицы
+    c.execute("SELECT parameters FROM user_parameters")
+    result = c.fetchone()
+
+    if result:
+        params_json = result[0]
+        parameters = json.loads(params_json)
+    else:
+        parameters = user_parameters
+
+    conn.close()
+    return parameters
 
 subways = {
     'Беговая' : 'metro%5B0%5D=355',
@@ -480,14 +507,5 @@ def generate_cian_url(user_parameters):
 def handle_text_messages(message):
     bot.send_message(message.chat.id, "<b>Пожалуйста, выберите с помощью кнопок или команд</b>", parse_mode='html')
 
-## Обработать exit, для след.параметров логика такая же, вроде все работает
-bot.infinity_polling()
-
-"""
-def main():
-    start_message(message)
-    bot.infinity_poling()
-
 if __name__ == '__main__':
-    main()
-"""
+    bot.infinity_polling()
