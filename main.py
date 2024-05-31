@@ -25,7 +25,7 @@ def start(message):
     btn2 = types.KeyboardButton('/params')
     markup.row(btn1, btn2)
     bot.send_message(message.chat.id,
-f"Доброго времени суток {message.from_user.username} 👋, здесь вы сможете узнать примерную стоимость жилья \
+f"Доброго времени суток {message.from_user.username if message.from_user.username is not None else message.from_user.first_name if message.from_user.first_name is not None else ''} 👋, здесь вы сможете узнать примерную стоимость жилья \
 в городе Санкт-Петербург 🌆, задав необходимые параметры \n\n<em>Чтобы детальней узнать о работе воспользуйтесь командой:</em> <b>/help</b>",
                      parse_mode = 'html',
                      reply_markup=markup)
@@ -41,37 +41,11 @@ f"Для предзакания вам нужно ввести следующи�
 \t4. Улица\n\
 \t5. Количество этажей\n\
 \t6. Год постройки дома\n\
-\t\tДоступные значения:\n\
-\t\t6.1 Застройка 00-х и 10-х\n\
-\t\t6.2 Новостройка\n\
-\t\t6.3 Стройка\n\
-\t\t6.4 Дома до 1930-х\n\
-\t\t6.5 Сталинка | Хрущевка | Брежневка\n\
 \t7. Тип автора\n\
-\t\tДоступные значения:\n\
-\t\t7.1 Агентство недвижимости\n\
-\t\t7.2 Собственник\n\
-\t\t7.3 Риелтор\n\
-\t\t7.4 Ук оф.представитель\n\
-\t\t7.5 Представитель застройщика\n\
-\t\t7.6 Застройщик\n\
-\t\t7.7 Без указанного типа\n\
 \t8. Количество комнат\n\
 \t9. Отделка\n\
-\t\tДоступные значения:\n\
-\t\t9.1 Неизвестно\n\
-\t\t9.2 Без отделки\n\
-\t\t9.3 Чистовая\n\
-\t\t9.4 Предчистовая\n\
-\t\t9.5 Черновая\n\
 \t10. Этаж\n\
-\t11. Тип дома\n\
-\t\tДоступные значения:\n\
-\t\t11.1 Неизвестно\n\
-\t\t11.2 Монолитно-кирпичный\n\
-\t\t11.3 Монолитный\n\
-\t\t11.4 Панельный\n\
-\t\t11.5 Кирпичный\n\n\
+\t11. Тип дома\n\n\
 <u>p.s. Данные актуальны на момент марта 2024 года</u>\n\
 Для старта воспользуйтесь командой /params",
 parse_mode = 'html'
@@ -94,66 +68,61 @@ user_parameters = {
     'underground': '',
 }
 
-# Вот сюда сейвим пользовательский ввод
-collected_params = {}
+def create_inline_keyboard(buttons_data):
+    """Создает InlineKeyboardMarkup из списка кортежей (текст, callback_data)."""
+    markup = types.InlineKeyboardMarkup()
+    buttons = [types.InlineKeyboardButton(text, callback_data=data) for text, data in buttons_data]
+    for button in buttons:
+        markup.add(button)
+    return markup
 
 # Start сollecting params
 @bot.message_handler(commands=['params'])
 def start_collecting_params(message):
-    markup = types.InlineKeyboardMarkup()
-    itembtns = [
-        types.InlineKeyboardButton('Агенство недвижимости', callback_data='real_estate_agent'),
-        types.InlineKeyboardButton('Собственник', callback_data='homeowner'),
-        types.InlineKeyboardButton('Риелтор', callback_data='realtor'),
-        types.InlineKeyboardButton('Ук оф.представитель', callback_data='official_representative'),
-        types.InlineKeyboardButton('Представитель застройщика', callback_data='representative_developer'),
-        types.InlineKeyboardButton('Застройщик', callback_data='developer'),
-        types.InlineKeyboardButton('Без указанного типа', callback_data='unknown')
+    buttons_data = [
+        ('Агенство недвижимости', 'real_estate_agent'),
+        ('Собственник', 'homeowner'),
+        ('Риелтор', 'realtor'),
+        ('Ук оф.представитель', 'official_representative'),
+        ('Представитель застройщика', 'representative_developer'),
+        ('Застройщик', 'developer'),
+        ('Без указанного типа', 'unknown')
     ]
-    for item in itembtns:
-        markup.add(item)
-
-    msg = bot.send_message(message.chat.id, "<b>Выберите тип автора:</b>", reply_markup=markup, parse_mode='html')
+    markup = create_inline_keyboard(buttons_data)
+    bot.send_message(message.chat.id, "<b>Выберите тип автора:</b>", reply_markup=markup, parse_mode='html')
 
 @bot.callback_query_handler(func=lambda call: True)
 def process_inline_buttons(call):
-    if hasattr(call, 'data') and call.data:
-        if call.data in ['real_estate_agent', 'homeowner', 'realtor', 'official_representative', 'representative_developer', 'developer', 'unknown']:
-            user_parameters['author_type'] = call.data
-            msg = bot.send_message(call.message.chat.id, "<b>Введите этаж (от 1 до 30):</b>", parse_mode='html')
-            bot.register_next_step_handler(msg, process_floor)
+    if not hasattr(call, 'data') or not call.data:
+        return
 
-        elif call.data in ['Застройка 00-х и 10-х', 'Новостройка', 'Стройка', 'Дома до 1930-х', 'Стaлинка | Хрущевка | Брежневка']:
-            user_parameters['year_of_construction'] = call.data
-            markup_house_material_type = types.InlineKeyboardMarkup()
-            itembtns_house_material_type = [
-                types.InlineKeyboardButton('Неизвестно', callback_data='Неизвестно'),
-                types.InlineKeyboardButton('Монолитно-кирпичный', callback_data='Монолитно-кирпичный'),
-                types.InlineKeyboardButton('Монолитный', callback_data='Монолитный'),
-                types.InlineKeyboardButton('Панельный', callback_data='Панельный'),
-                types.InlineKeyboardButton('Кирпичный', callback_data='Кирпичный')
-            ]
-            for item in itembtns_house_material_type:
-                markup_house_material_type.add(item)
-            msg = bot.send_message(call.message.chat.id, "<b>Введите тип дома:</b>", reply_markup=markup_house_material_type, parse_mode='html')
+    author_types = ['real_estate_agent', 'homeowner', 'realtor', 'official_representative', 'representative_developer', 'developer', 'unknown']
+    construction_years = ['Застройка 00-х и 10-х', 'Новостройка', 'Стройка', 'Дома до 1930-х', 'Стaлинка | Хрущевка | Брежневка']
+    house_materials = [('Неизвестно', 'house_material_Неизвестно'), ('Монолитно-кирпичный', 'house_material_Монолитно-кирпичный'),
+                       ('Монолитный', 'house_material_Монолитный'), ('Панельный', 'house_material_Панельный'),
+                       ('Кирпичный', 'house_material_Кирпичный')]
+    finish_types = [('Неизвестно', 'finish_type_Неизвестно'), ('Без отделки', 'finish_type_Без отделки'),
+                    ('Чистовая', 'finish_type_Чистовая'), ('Предчистовая', 'finish_type_Предчистовая'),
+                    ('Черновая', 'finish_type_Черновая')]
 
-        elif call.data in ['Неизвестно', 'Монолитно-кирпичный', 'Монолитный', 'Панельный', 'Кирпичный'] and user_parameters['house_material_type'] == '':
-            user_parameters['house_material_type'] = call.data
-            markup_finish_type = types.InlineKeyboardMarkup()
-            itembtns_finish_type = [
-                types.InlineKeyboardButton('Неизвестно', callback_data='Неизвестно'),
-                types.InlineKeyboardButton('Без отделки', callback_data='Без отделки'),
-                types.InlineKeyboardButton('Чистовая', callback_data='Чистовая'),
-                types.InlineKeyboardButton('Предчистовая', callback_data='Предчистовая'),
-                types.InlineKeyboardButton('Черновая', callback_data='Черновая')
-            ]
-            for item in itembtns_finish_type:
-                markup_finish_type.add(item)
-            msg = bot.send_message(call.message.chat.id, "<b>Введите тип отделки:</b>", reply_markup=markup_finish_type, parse_mode='html')
+    if call.data in author_types:
+        user_parameters['author_type'] = call.data
+        msg = bot.send_message(call.message.chat.id, "<b>Введите этаж (от 1 до 30):</b>", parse_mode='html')
+        bot.register_next_step_handler(msg, process_floor)
 
-        elif call.data in ['Неизвестно', 'Без отделки', 'Чистовая', 'Предчистовая', 'Черновая']:
-            user_parameters['finish_type'] = call.data
-            msg = bot.send_message(call.message.chat.id, "<b>Введите район Санкт-Петербурга:\nПриморский\n\
+    elif call.data in construction_years:
+        user_parameters['year_of_construction'] = call.data
+        markup_house_material_type = create_inline_keyboard(house_materials)
+        msg = bot.send_message(call.message.chat.id, "<b>Введите тип дома:</b>", reply_markup=markup_house_material_type, parse_mode='html')
+
+    elif call.data.startswith('house_material_'): #and not user_parameters.get('house_material_type')
+        user_parameters['house_material_type'] = call.data.split('_', 2)[2]
+        markup_finish_type = create_inline_keyboard(finish_types)
+        msg = bot.send_message(call.message.chat.id, "<b>Введите тип отделки:</b>", reply_markup=markup_finish_type, parse_mode='html')
+
+    elif call.data.startswith('finish_type_'):
+        user_parameters['finish_type'] = call.data.split('_', 2)[2]
+        msg = bot.send_message(call.message.chat.id, "<b>Введите район Санкт-Петербурга:</b>\nПриморский\n\
 Московский\n\
 Пушкинский\n\
 Выборгский\n\
@@ -169,8 +138,8 @@ def process_inline_buttons(call):
 Колпинский\n\
 Фрунзенский\n\
 Петродворцовый\n\
-Кировский</b>", parse_mode='html')
-            bot.register_next_step_handler(msg, process_district)
+Кировский", parse_mode='html')
+        bot.register_next_step_handler(msg, process_district)
 
 # Process floor
 def process_floor(message):
@@ -214,7 +183,7 @@ def process_rooms_count(message):
             bot.register_next_step_handler(msg, process_rooms_count)
         else:
             user_parameters['rooms_count'] = rooms_cnt
-            msg = bot.send_message(message.chat.id, "<b>Введите общую площадь (от 18 до 173):</b>", parse_mode='html')
+            msg = bot.send_message(message.chat.id, "<b>Введите общую площадь:</b>", parse_mode='html')
             bot.register_next_step_handler(msg, process_total_meters)
     except ValueError:
         msg = bot.send_message(message.chat.id, "<b>Пожалуйста, введите числовое значение (от 0 до 5):</b>", parse_mode='html')
@@ -224,34 +193,48 @@ def process_rooms_count(message):
 def process_total_meters(message):
     try:
         total_meters = int(message.text)
-        if total_meters < 18 or total_meters > 173:
-            msg = bot.send_message(message.chat.id, "<b>Пожалуйста, введите общую  площадь в диапазоне (от 18 до 173):</b>", parse_mode='html')
-            bot.register_next_step_handler(msg, process_total_meters)
-        else:
+
+        # Убедимся, что rooms_count существует и корректно сохранен
+        rooms_count = user_parameters.get('rooms_count')
+
+        valid_ranges = {
+            0: (18, 30),
+            1: (28, 42),
+            2: (40, 90),
+            3: (60, 120),
+            4: (70, 139),
+            5: (80, 179)
+        }
+
+        min_meters, max_meters = valid_ranges.get(rooms_count, (0, float('inf')))
+
+        if min_meters <= total_meters <= max_meters:
             user_parameters['total_meters'] = total_meters
-            markup_period_built = types.InlineKeyboardMarkup()
-            itembtns_period_built = [
-                types.InlineKeyboardButton('Застройка 00-х и 10-х', callback_data='Застройка 00-х и 10-х'),
-                types.InlineKeyboardButton('Новостройка', callback_data='Новостройка'),
-                types.InlineKeyboardButton('Стройка', callback_data='Стройка'),
-                types.InlineKeyboardButton('Дома до 1930-х', callback_data='Дома до 1930-х'),
-                types.InlineKeyboardButton('Стaлинка | Хрущевка | Брежневка', callback_data='Стaлинка | Хрущевка | Брежневка')
+
+            if rooms_count == 0:
+                user_parameters['kitchen_meters'] = round(total_meters * 0.15, 2)
+                user_parameters['living_meters'] = round(total_meters * 0.65, 2)
+            else:
+                user_parameters['kitchen_meters'] = round(total_meters * 0.18, 2)
+                user_parameters['living_meters'] = round(total_meters * 0.48, 2)
+
+            buttons_data = [
+                ('Застройка 00-х и 10-х', 'Застройка 00-х и 10-х'),
+                ('Новостройка', 'Новостройка'),
+                ('Стройка', 'Стройка'),
+                ('Дома до 1930-х', 'Дома до 1930-х'),
+                ('Стaлинка | Хрущевка | Брежневка', 'Стaлинка | Хрущевка | Брежневка')
             ]
-
-            for item in itembtns_period_built:
-                markup_period_built.add(item)
-
-            if user_parameters['rooms_count'] == 0:
-                user_parameters['kitchen_meters'] = round(user_parameters['total_meters'] * 0.15, 2)
-                user_parameters['living_meters'] = round(user_parameters['total_meters'] * 0.65, 2)
-            elif user_parameters['rooms_count'] != 0:
-                user_parameters['kitchen_meters'] = round(user_parameters['total_meters'] * 0.18, 2)
-                user_parameters['living_meters'] = round(user_parameters['total_meters'] * 0.48, 2)
+            markup_period_built = create_inline_keyboard(buttons_data)
 
             msg = bot.send_message(message.chat.id, "<b>Выберите период постройки дома:</b>", reply_markup=markup_period_built, parse_mode='html')
 
+        else:
+            msg = bot.send_message(message.chat.id, f"<b>Пожалуйста, введите общую площадь в диапазоне ({min_meters} до {max_meters} м²):</b>", parse_mode='html')
+            bot.register_next_step_handler(msg, process_total_meters)
+
     except ValueError:
-        msg = bot.send_message(message.chat.id, "<b>Пожалуйста, введите числовое значение (от 18 до 173):</b>", parse_mode='html')
+        msg = bot.send_message(message.chat.id, "<b>Некорректный ввод. Введите общую площадь (в м²):</b>", parse_mode='html')
         bot.register_next_step_handler(msg, process_total_meters)
 
 # Process district
@@ -376,9 +359,6 @@ def prediction(message):
         bot.register_next_step_handler(msg, process_inline_buttons)
 
 def save_parameters():
-    global user_parameters
-    user_parameters.update(collected_params)
-
     conn = sqlite3.connect('/app/data/user_parameters.db')
     c = conn.cursor()
 
